@@ -77,11 +77,11 @@ public sealed class CodeGenerator
 [Flags]
 public enum CreationSize
 {
-  /// <summary>Fills the tree to its maximum size.</summary>
+  /// <summary>Fills the tree to one quarter its maximum size.</summary>
   Quarter=1,
   /// <summary>Fills the tree to half its maximum size.</summary>
   Half=2,
-  /// <summary>Fills the tree to one quarter its maximum size.</summary>
+  /// <summary>Fills the tree to its maximum size.</summary>
   Full=3,
   /// <summary>A mask that can be applied to get the size -- Quarter, Half, or Full.</summary>
   SizeMask=3,
