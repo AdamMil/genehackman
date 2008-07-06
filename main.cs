@@ -102,15 +102,17 @@ static class Program
                      (takeFood)
                      (rest))
                    (takeFood))))
-             (ifOneInTen
-               (prog2
-                 (eat)
-                 (ifCoinFlip
+             (ifCoinFlip
+               (rest)
+               (ifOneInTen
+                 (prog2
+                   (eat)
                    (ifCoinFlip
-                     (turnLeft)
-                     (turnRight))
-                   (walk)))
-               (walk)))", true);
+                     (ifCoinFlip
+                       (turnLeft)
+                       (turnRight))
+                     (walk)))
+                 (walk))))", true);
         }
 
         break;
