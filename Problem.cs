@@ -90,6 +90,11 @@ struct Creature : IIndividual
 
   public double GetFitness()
   {
+    // 80% for age and 20% for small code size
+    return 0.8 * Age / MaxAge +
+           0.2 * (Program.GP.MaxCodeSize - Program.GP.GetCodeSize(index)) / Program.GP.MaxCodeSize;
+
+    /*
     // the fitness will be broken down in this fashion:
     // 0 to 0.10 will consist of a 0.05 bonus for moving and 0.05 bonus for eating.
     // 0.10 to 0.80 will consist of a bonus for long life (only for creatures that have eaten something)
@@ -111,7 +116,7 @@ struct Creature : IIndividual
       }
     }
 
-    return fitness;
+    return fitness;*/
   }
 
   public bool HasFlag(Flag flag)
@@ -164,7 +169,7 @@ sealed class World
 
     int maxAdd = Math.Max(1, clumpAmount/10);
 
-    for(int x=rand.Next(width/2-10)+width/2+10, y=rand.Next(height), clumpSpread=0; clumpAmount > 0; clumpSpread++)
+    for(int x=rand.Next(Width), y=rand.Next(Height), clumpSpread=0; clumpAmount > 0; clumpSpread++)
     {
       int distance = clumpSpread/2;
       int rx = x+rand.Next(distance*2)-distance, ry = y+rand.Next(distance*2)-distance;
@@ -180,6 +185,22 @@ sealed class World
         food[rx, ry] += (byte)toAdd;
         clumpAmount -= toAdd;
         totalFood   += toAdd;
+      }
+    }
+  }
+
+  public void ScatterFood(Random rand, int amount)
+  {
+    while(amount > 0)
+    {
+      int x = rand.Next(Width), y = rand.Next(Height);
+      int toAdd = Math.Min(Math.Min(amount, 50), MaxFoodPerSquare - food[x, y]);
+      if(toAdd == 0) amount -= 10; // prevent an infinite loop
+      else
+      {
+        food[x, y] += (byte)toAdd;
+        amount     -= toAdd;
+        totalFood  += toAdd;
       }
     }
   }
@@ -219,11 +240,12 @@ sealed class GeneticProgrammer : GeneticProgrammer<Creature>
     world = new World(Width, Height);
     AverageGenerations    = 2;
     MutationChance        = 5;
-    ReplacementThreshold  = 0.05; // creatures that move but never eat may get dumped
+    ReplacementThreshold  = 0.05; // creatures with very low fitness may get dumped
 
     base.Initialize(TournamentMode.Ongoing, MaxCreatures, CodeSize, (CodeSize+1)/2, 1, false, GetFunctions());
     world.AddFoodClump(rand, FoodClumpSize);
     world.AddFoodClump(rand, FoodClumpSize);
+    world.ScatterFood(rand, FoodClumpSize);
 
     rands = new Random[Threads];
     for(int i=0; i<rands.Length; i++) rands[i] = new Random();
@@ -231,7 +253,11 @@ sealed class GeneticProgrammer : GeneticProgrammer<Creature>
 
   public override void Run()
   {
-    if(world.TotalFood < FoodAddThresh && Rounds % 128 == 0) world.AddFoodClump(rand, FoodClumpSize);
+    if(world.TotalFood < FoodAddThresh && Rounds % 128 == 0)
+    {
+      if(rand.Next() % 3 == 0) world.ScatterFood(rand, FoodClumpSize);
+      else world.AddFoodClump(rand, FoodClumpSize);
+    }
     base.Run();
   }  
 
@@ -240,11 +266,22 @@ sealed class GeneticProgrammer : GeneticProgrammer<Creature>
  	  base.GenerateRandomIndividual(index, out individual);
     individual.Memory1    = individual.Memory2 = individual.ContextPoint = Point.Invalid;
     individual.Direction  = (Direction)(rand.Next(4)+1);
-    individual.ColorR     = (byte)rand.Next(256);
-    individual.ColorG     = (byte)rand.Next(256);
-    individual.ColorB     = (byte)rand.Next(256);
-    individual.Position.X = (byte)rand.Next(world.Width/2-10);
-    individual.Position.Y = (byte)rand.Next(world.Height/2-10);
+
+    // generate the color. don't allow them to get too near white
+    while(true)
+    {
+      int r = rand.Next(248), g = rand.Next(248), b = rand.Next(248);
+      if(r + g + b < 640)
+      {
+        individual.ColorR = (byte)r;
+        individual.ColorG = (byte)g;
+        individual.ColorB = (byte)b;
+        break;
+      }
+    }
+
+    individual.Position.X = (byte)rand.Next(world.Width);  //rand.Next(world.Width/2-10);
+    individual.Position.Y = (byte)rand.Next(world.Height); // rand.Next(world.Height/2-10);
     individual.Health     = Creature.MaxHealth;
     individual.Satiety    = Creature.MaxSatiety;
     individual.index      = index;
@@ -260,9 +297,21 @@ sealed class GeneticProgrammer : GeneticProgrammer<Creature>
   protected override void InitializeMutated(int index, ref Creature individual)
   {
     InitializeFromClone(index, out individual, ref individual);
-    individual.ColorR = (byte)Math.Min(255, Math.Max(0, individual.ColorR + rand.Next(24)));
-    individual.ColorG = (byte)Math.Min(255, Math.Max(0, individual.ColorG + rand.Next(24)));
-    individual.ColorB = (byte)Math.Min(255, Math.Max(0, individual.ColorB + rand.Next(24)));
+
+    // generate the color. don't allow them to get too near white
+    while(true)
+    {
+      int r = (byte)Math.Min(248, Math.Max(0, individual.ColorR + rand.Next(24)));
+      int g = (byte)Math.Min(248, Math.Max(0, individual.ColorG + rand.Next(24)));
+      int b = (byte)Math.Min(248, Math.Max(0, individual.ColorB + rand.Next(24)));
+      if(r + g + b < 640)
+      {
+        individual.ColorR = (byte)r;
+        individual.ColorG = (byte)g;
+        individual.ColorB = (byte)b;
+        break;
+      }
+    }
   }
 
   protected override void InitializeFromParents(int index, out Creature individual,
