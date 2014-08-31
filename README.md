@@ -1,0 +1,3 @@
+Gene Hackman is a framework for genetic programming. A novel feature is that it supports an ongoing tournament mode, where programs compete in real time rather than well-defined and distinct generations. This lends itself to certain problems well, such as those where programs can interact with each other. It also supports parallelizing the simulation across multiple threads and compiling it to native code, among other things.
+
+It might be in a somewhat broken state due to an unfinished overhaul in which I was going to add support for dynamic functions, variables, and constants.
